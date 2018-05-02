@@ -6,13 +6,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +57,9 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 import com.sp.sp_weChat_connector.service.ReactiveWeChatAccessToken;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -149,99 +156,82 @@ public class SpWeChatConnectorApplication {
 		return pngData;
 	}
 
-	private boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+	
 
-	private static class StreamGobbler implements Runnable {
-		private InputStream inputStream;
-		private Consumer<String> consumer;
 
-		public StreamGobbler(InputStream inputStream, Consumer<String> consumer) {
-			this.inputStream = inputStream;
-			this.consumer = consumer;
+
+	@Data
+	@NoArgsConstructor
+	static class ExecuteCommandAndReadResultingFile {
+		
+		private final Logger log = LoggerFactory.getLogger(this.getClass());
+		
+		private String commandTemplate;
+		private Path resultingFile;
+		private boolean isWindows = System.getProperty("os.name").toLowerCase().startsWith("windows");
+	
+		public ExecuteCommandAndReadResultingFile(String commandTemplate, Path resultingFile) {
+			this.commandTemplate = commandTemplate;
+			this.resultingFile = resultingFile;
 		}
+		
+		public List<String> executeAndReadResultingFile(String ...args) throws IOException, InterruptedException{
+			executeAndBlock(args);
+			return readResultingFile(resultingFile);
+		} 
+		private int executeAndBlock(String...args) throws IOException, InterruptedException {
+			String cmd = String.format(commandTemplate, args);
+			
+			String homeDirectory = System.getProperty("user.home");
+			Process process;
+			if (isWindows) {
+				process = Runtime.getRuntime().exec(String.format("cmd.exe /c dir %s", homeDirectory));
+			} else {
+				process = Runtime.getRuntime().exec(cmd);
+			}
 
-		@Override
-		public void run() {
-			new BufferedReader(new InputStreamReader(inputStream)).lines().forEach(consumer);
+			StreamGobbler streamGobbler = new StreamGobbler(process.getInputStream(), log::info);
+			streamGobbler.run();
+			
+			int exitCode = process.waitFor();
+			assert exitCode == 0;
+			return exitCode;
+		}
+		private List<String> readResultingFile(Path resultingFile) throws IOException{
+			return Files.readAllLines(resultingFile);
+		} 
+		
+		
+		private static class StreamGobbler implements Runnable {
+			private InputStream inputStream;
+			private Consumer<String> consumer;
+
+			public StreamGobbler(InputStream inputStream, Consumer<String> consumer) {
+				this.inputStream = inputStream;
+				this.consumer = consumer;
+			}
+
+			@Override
+			public void run() {
+				new BufferedReader(new InputStreamReader(inputStream)).lines().forEach(consumer);
+			}
 		}
 	}
-
+	
+	
 	@Bean
 	CommandLineRunner commandLineRunner() {
 		return new CommandLineRunner() {
 
-			@SuppressWarnings("serial")
 			@Override
 			public void run(String... args) throws Exception {
-
-				// generateQRCodeImage("hello world", 350, 350, QR_CODE_IMAGE_PATH);
-
-				// logger.info("\n\n\n"+BodyInserters.fromFormData(new
-				// LinkedMultiValueMap<String, String>(){{
-				// add("name", "ttst");
-				// }})+"\n\n\n");
-				// System.out.println(
-				// client.post().uri(builder->builder.path("/user/repos").build())
-				// .contentType(MediaType.APPLICATION_JSON)
-				// .body(BodyInserters.fromObject(new LinkedMultiValueMap<String, String>(){{
-				// add("name", "tttst");
-				// }}))
-				// .retrieve()
-				// .bodyToMono(String.class)
-				// .block(Duration.ofSeconds(3)));
-
-				/*
-				 * https://open.weixin.qq.com/connect/oauth2/authorize?
-				 * appid=wx520c15f417810387&
-				 * redirect_uri=https%3A%2F%2Fchong.qq.com%2Fphp%2Findex.php%3Fd%3D%26c%
-				 * 3DwxAdapter%26m%3DmobileDeal%26showwxpaytitle%3D1%26vb2ctag%
-				 * 3D4_2030_5_1194_60& response_type=code& scope=snsapi_base&
-				 * state=123#wechat_redirect
-				 * 
-				 * 
-				 * https://open.weixin.qq.com/connect/oauth2/authorize?
-				 * appid=wxf0e81c3bee622d60&
-				 * redirect_uri=http%3A%2F%2Fnba.bluewebgame.com%2Foauth_response.php&
-				 * response_type=code& scope=snsapi_userinfo& state=STATE#wechat_redirect
-				 */
-
-				// logger.info("\n\n\n\n"+ client
-				// .get()
-				// .uri(builder->builder.path("/cgi-bin/user/info")
-				// .queryParam("access_token", token.get())
-				// .queryParam("openid", "oPEtq1QWobper9qCFtPWwihkjNEE")
-				// .queryParam("lang", "zh_CN")
-				// .build())
-				// .retrieve()
-				// .bodyToMono(String.class).block()
-				// );
-
-				// logger.info("\n\n\n\n"+ client
-				// .get()
-				// .uri("https://open.weixin.qq.com/connect/oauth2/authorize?"
-				// +"appid=wxe0ef1b4366d54654&"
-				// +"redirect_uri=http%3A%2F%2Fwww.hanchen.site&"
-				// +"response_type=code&scope=snsapi_userinfo&state=STATE#wechat_redirect")
-				//
-				// .retrieve()
-				// .bodyToMono(String.class).block()
-				// );
-
-				String homeDirectory = System.getProperty("user.home");
-				Process process;
-				if (isWindows) {
-					process = Runtime.getRuntime().exec(String.format("cmd.exe /c dir %s", homeDirectory));
-				} else {
-					//process = Runtime.getRuntime().exec(String.format("sh -c ls %s", homeDirectory));
-					String cmd = "csh /fs/szgenefinding/Glimmer3/scripts/g3-iterated.csh ~/1009-Genome.fas tag";
-					process = Runtime.getRuntime().exec(cmd);
-				}
-				StreamGobbler streamGobbler = new StreamGobbler(process.getInputStream(), System.out::println);
-				streamGobbler.run();
-				int exitCode = process.waitFor();
-				assert exitCode == 0;
-				System.out.println(exitCode);
-				System.out.println("done");
+				
+				String cmdTemplate = "csh /fs/szgenefinding/Glimmer3/scripts/g3-iterated.csh %s tag";
+				String fastaFileName = "~/1009-Genome.fas";
+				Path resultingFile = Paths.get("fs","szgenefinding","Glimmer3","scripts","tag.predict");
+				
+				ExecuteCommandAndReadResultingFile glimmerAdapter = new ExecuteCommandAndReadResultingFile(cmdTemplate, resultingFile);
+				glimmerAdapter.executeAndReadResultingFile(fastaFileName).forEach(System.out::println);
 			}
 		};
 	}
