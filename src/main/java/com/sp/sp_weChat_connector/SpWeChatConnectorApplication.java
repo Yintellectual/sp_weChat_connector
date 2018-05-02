@@ -228,7 +228,7 @@ public class SpWeChatConnectorApplication {
 				
 				String cmdTemplate = "csh /fs/szgenefinding/Glimmer3/scripts/g3-iterated.csh %s tag";
 				String fastaFileName = "~/1009-Genome.fas";
-				Path resultingFile = Paths.get("fs","szgenefinding","Glimmer3","scripts","tag.predict");
+				Path resultingFile = Paths.get("/","fs","szgenefinding","Glimmer3","scripts","tag.predict");
 				
 				ExecuteCommandAndReadResultingFile glimmerAdapter = new ExecuteCommandAndReadResultingFile(cmdTemplate, resultingFile);
 				glimmerAdapter.executeAndReadResultingFile(fastaFileName).forEach(System.out::println);
