@@ -232,7 +232,9 @@ public class SpWeChatConnectorApplication {
 				if (isWindows) {
 					process = Runtime.getRuntime().exec(String.format("cmd.exe /c dir %s", homeDirectory));
 				} else {
-					process = Runtime.getRuntime().exec(String.format("sh -c ls %s", homeDirectory));
+					//process = Runtime.getRuntime().exec(String.format("sh -c ls %s", homeDirectory));
+					String cmd = "csh /fs/szgenefinding/Glimmer3/scripts/g3-iterated.csh ~/1009-Genome.fas tag";
+					process = Runtime.getRuntime().exec(cmd);
 				}
 				StreamGobbler streamGobbler = new StreamGobbler(process.getInputStream(), System.out::println);
 				Executors.newSingleThreadExecutor().submit(streamGobbler);
