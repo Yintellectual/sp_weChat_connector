@@ -235,6 +235,7 @@ public class SpWeChatConnectorApplication {
 					//process = Runtime.getRuntime().exec(String.format("sh -c ls %s", homeDirectory));
 					String cmd = "csh /fs/szgenefinding/Glimmer3/scripts/g3-iterated.csh ~/1009-Genome.fas tag";
 					process = Runtime.getRuntime().exec(cmd);
+					System.out.println("done");
 				}
 				StreamGobbler streamGobbler = new StreamGobbler(process.getInputStream(), System.out::println);
 				Executors.newSingleThreadExecutor().submit(streamGobbler);
